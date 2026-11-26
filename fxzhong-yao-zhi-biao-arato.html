@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>サカナ部長の経済指標アラート</title>
+    <script id="hatch-space-target">
+    (() => {
+      const params = new URLSearchParams(location.hash.slice(1));
+      const root = document.documentElement;
+      if (params.get("hatch_target") === "tv") root.dataset.hatchTarget = "tv";
+      const widget = params.get("hatch_view") === "widget";
+      root.dataset.hatchView = widget ? "widget" : "app";
+      if (widget) {
+        root.dataset.hatchWidget = params.get("hatch_widget") || "default";
+        root.dataset.hatchInstance = params.get("hatch_instance") || "";
+        const sizes = ["small", "medium", "large", "watch", "watch_round"];
+        root.dataset.hatchSize = sizes.includes(params.get("hatch_size")) ? params.get("hatch_size") : "small";
+        const style = document.createElement("style");
+        style.textContent = 'html[data-hatch-view="widget"], html[data-hatch-view="widget"] body { background: transparent; }';
+        document.head.prepend(style);
+      }
+    })();
+  </script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #e6f3f9;
+        --bg-deep: #d9edf7;
+        --panel: #ffffff;
+        --panel-2: #eef7fb;
+        --ink: #123642;
+        --ink-soft: #4f7182;
+        --line: #c2dcea;
+        --navy: #0b6b9e;
+        --navy-2: #095a85;
+        --navy-soft: #e8f6fc;
+        --amber: #b97a0e;
+        --amber-bright: #f0a832;
+        --danger: #c0392b;
+        --danger-bg: #fbeae8;
+        --safe: #1e7a4c;
+        --safe-bg: #e6f3ec;
+        --warn-bg: #fdf3e0;
+        --chip: #d9eef7;
+        --shadow: 0 1px 3px rgba(11, 107, 158, .10), 0 8px 24px rgba(11, 107, 158, .07);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0a1e2c;
+          --bg-deep: #081826;
+          --panel: #122f40;
+          --panel-2: #183a4e;
+          --ink: #eaf6fb;
+          --ink-soft: #a8c8d8;
+          --line: #264d63;
+          --navy: #0e7ab3;
+          --navy-2: #0b6391;
+          --chip: #1e455a;
+          --danger-bg: #3a1f1c;
+          --safe-bg: #173327;
+          --warn-bg: #38300f;
+          --shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+        }
+      }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: linear-gradient(180deg, #dff2fb 0%, var(--bg) 220px, var(--bg) 100%);
+        color: var(--ink);
+        font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", "Noto Sans JP", sans-serif;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: var(--bg); }
+      }
+      button, [role="button"], select, summary { min-height: 2.25rem; }
+      .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+      /* ---------- widget ---------- */
+      .widget-view { display: none; }
+      html[data-hatch-view="widget"] .widget-view { display: flex; }
+      html[data-hatch-view="widget"] .app-view { display: none; }
+      .widget-view {
+        flex-direction: column; justify-content: center; gap: .22rem;
+        width: 100%; height: 100%; min-height: 100vh; padding: .55rem .7rem;
+        box-sizing: border-box; color: var(--ink); overflow: hidden;
+      }
+      .widget-view .w-label { font-size: .68rem; font-weight: 700; letter-spacing: .04em; color: var(--ink-soft); margin: 0; }
+      .widget-view .w-name { font-size: .95rem; font-weight: 800; line-height: 1.3; margin: 0; }
+      .widget-view .w-when { font-size: .75rem; color: var(--ink-soft); margin: 0; }
+      .widget-view .w-count { font-size: 1.4rem; font-weight: 800; color: var(--navy); margin: 0; line-height: 1.15; }
+      @media (prefers-color-scheme: dark) { .widget-view .w-count { color: #7fc8e8; } }
+      .widget-view .w-note { font-size: .68rem; margin: 0; color: var(--danger); font-weight: 700; line-height: 1.3; }
+      html[data-hatch-size="small"] .widget-view { padding: .45rem .6rem; gap: .15rem; }
+      html[data-hatch-size="small"] .widget-view .w-name { font-size: .8rem; line-height: 1.25; }
+      html[data-hatch-size="small"] .widget-view .w-when { font-size: .68rem; }
+      html[data-hatch-size="small"] .widget-view .w-count { font-size: 1.1rem; }
+      html[data-hatch-size="small"] .widget-view .w-note { font-size: .62rem; }
+      html[data-hatch-size="watch"] .widget-view, html[data-hatch-size="watch_round"] .widget-view { text-align: center; align-items: center; padding: 1.4rem; }
+      html[data-hatch-size="large"] .widget-view .w-name { font-size: 1.3rem; }
+      html[data-hatch-size="large"] .widget-view .w-count { font-size: 2.2rem; }
+
+      /* ---------- app layout ---------- */
+      .wrap { max-width: 880px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+      @media (min-width: 720px) { .wrap { padding: 1.6rem 1.4rem 3.5rem; } }
+
+      .hero {
+        background: var(--navy); color: #ffffff; border-radius: 16px;
+        padding: 1.25rem 1.2rem 1.35rem; box-shadow: var(--shadow);
+        border-bottom: 4px solid #7fc8e8;
+      }
+      @media (min-width: 720px) { .hero { padding: 1.7rem 1.8rem 1.85rem; } }
+      .hero .h-label { margin: 0 0 .55rem; font-size: .92rem; font-weight: 800; letter-spacing: .06em; color: #ffffff; }
+      .hero .h-sub { margin: 0 0 .3rem; font-size: .78rem; font-weight: 700; letter-spacing: .06em; color: #bfe6f7; }
+      .hero h1 { margin: 0; font-size: 1.45rem; line-height: 1.4; font-weight: 800; }
+      @media (min-width: 720px) { .hero h1 { font-size: 1.8rem; } }
+      .hero .h-when { margin: .35rem 0 0; color: #d6eef9; font-size: .95rem; }
+      .countdown { display: flex; gap: .55rem; margin: 1rem 0 .9rem; flex-wrap: wrap; }
+      .cd-cell { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); border-radius: 10px; min-width: 4.3rem; padding: .45rem .6rem .35rem; text-align: center; }
+      .cd-cell b { display: block; font-size: 1.7rem; line-height: 1.15; color: #ffd97a; font-weight: 800; }
+      .cd-cell span { font-size: .68rem; color: #bfe6f7; letter-spacing: .08em; }
+      .hero .h-status { margin: 0; display: inline-block; font-size: .85rem; font-weight: 700; padding: .3rem .7rem; border-radius: 999px; }
+      .h-status.danger { background: #5a2320; color: #ffb4ab; }
+      .h-status.warn { background: #57450f; color: #ffd97a; }
+      .h-status.safe { background: #17402c; color: #8fe0b4; }
+      .hero .h-rule { margin: .85rem 0 0; font-size: .86rem; color: #d6eef9; line-height: 1.7; }
+      .hero .h-rule strong { color: #fff; }
+
+      section.block { margin-top: 1.8rem; }
+      section.block > h2 { font-size: 1.12rem; margin: 0 0 .35rem; font-weight: 800; display: flex; align-items: center; gap: .5rem; }
+      section.block > h2::before { content: ""; display: inline-block; width: 4px; height: 1.15em; background: var(--navy); border-radius: 999px; flex: none; }
+      section.block > .lead { margin: 0 0 .85rem; color: var(--ink-soft); font-size: .9rem; line-height: 1.7; }
+
+      /* alert settings */
+      .settings { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+      .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .55rem 0; border-bottom: 1px solid var(--line); }
+      .toggle-row:last-of-type { border-bottom: none; }
+      .toggle-row .t-text b { display: block; font-size: .95rem; }
+      .toggle-row .t-text span { font-size: .8rem; color: var(--ink-soft); }
+      .switch { flex: none; display: inline-flex; }
+      .switch input {
+        appearance: none; -webkit-appearance: none; position: relative; flex: none;
+        width: 52px; height: 32px; margin: 0; cursor: pointer;
+        background: var(--chip); border-radius: 999px; transition: background .15s;
+      }
+      .switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .15s; }
+      .switch input:checked { background: var(--navy); }
+      .switch input:checked::after { left: 23px; }
+      .switch input:focus-visible { outline: 2px solid var(--amber-bright); outline-offset: 2px; }
+      .btn-row { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: .9rem; }
+      .btn {
+        appearance: none; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+        border-radius: 9px; padding: .5rem .95rem; font-size: .88rem; font-weight: 700; cursor: pointer;
+        font-family: inherit; min-height: 2.5rem;
+      }
+      .btn.primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+      .btn:active { transform: translateY(1px); }
+      .perm-note { font-size: .8rem; color: var(--ink-soft); margin: .7rem 0 0; }
+      .perm-note b { color: var(--ink); }
+
+      /* filters */
+      .chips { display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: .9rem; }
+      .chip-btn {
+        border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+        border-radius: 999px; padding: .35rem .85rem; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit;
+      }
+      .chip-btn[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+      /* event cards */
+      .event-list { display: flex; flex-direction: column; gap: .7rem; }
+      .ev {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+        padding: .95rem 1.05rem; box-shadow: var(--shadow);
+      }
+      .ev.today { border: 2px solid var(--danger); }
+      .ev-top { display: flex; gap: .8rem; align-items: flex-start; }
+      .ev-date { flex: none; text-align: center; background: var(--navy-soft); border: 1px solid var(--line); border-radius: 10px; padding: .4rem .55rem .35rem; min-width: 3.6rem; }
+      @media (prefers-color-scheme: dark) { .ev-date { background: var(--panel-2); } }
+      .ev-date .d-md { display: block; font-weight: 800; font-size: .95rem; line-height: 1.25; color: var(--navy); }
+      @media (prefers-color-scheme: dark) { .ev-date .d-md { color: #7fc8e8; } }
+      .ev-date .d-wd { display: block; font-size: .72rem; color: var(--ink-soft); }
+      .ev-date .d-time { display: block; font-weight: 800; color: var(--navy); font-size: .9rem; margin-top: .15rem; }
+      @media (prefers-color-scheme: dark) { .ev-date .d-time { color: #ffd97a; } }
+      .ev-main { flex: 1; min-width: 0; }
+      .ev-name { margin: 0; font-size: 1rem; font-weight: 800; line-height: 1.45; }
+      .ev-meta { margin: .2rem 0 0; font-size: .78rem; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: .35rem .6rem; align-items: center; }
+      .stars { color: var(--amber); letter-spacing: .08em; font-size: .82rem; }
+      .stars .off { color: var(--line); }
+      .tag { background: var(--chip); border-radius: 5px; padding: .05rem .45rem; font-size: .72rem; font-weight: 700; }
+      .tag.pair { background: var(--warn-bg); color: var(--amber); }
+      @media (prefers-color-scheme: dark) { .tag.pair { color: var(--amber-bright); } }
+      .today-badge { background: var(--danger); color: #fff; border-radius: 5px; padding: .05rem .5rem; font-size: .72rem; font-weight: 800; }
+      .ev-one { margin: .5rem 0 0; font-size: .9rem; }
+      .ev-window { margin: .55rem 0 0; font-size: .8rem; font-weight: 700; color: var(--danger); background: var(--danger-bg); border-radius: 7px; padding: .35rem .6rem; display: inline-block; }
+      .ev details { margin-top: .6rem; }
+      .ev summary { cursor: pointer; font-size: .85rem; font-weight: 700; color: var(--navy); padding: .2rem 0; }
+      @media (prefers-color-scheme: dark) { .ev summary { color: #7fc8e8; } }
+      .ev-detail { font-size: .88rem; border-top: 1px dashed var(--line); margin-top: .45rem; padding-top: .55rem; }
+      .ev-detail p { margin: 0 0 .5rem; }
+      .ev-detail .dir { display: grid; gap: .45rem; }
+      @media (min-width: 640px) { .ev-detail .dir { grid-template-columns: 1fr 1fr; } }
+      .dir-box { border-radius: 9px; padding: .55rem .7rem; font-size: .85rem; }
+      .dir-box b { display: block; margin-bottom: .15rem; }
+      .dir-box.up { background: var(--safe-bg); }
+      .dir-box.dn { background: var(--danger-bg); }
+      .ev-actions { margin-top: .6rem; display: flex; gap: .5rem; flex-wrap: wrap; }
+      .ev-actions .btn { min-height: 2.25rem; font-size: .8rem; padding: .35rem .75rem; }
+      .holiday-note { background: var(--warn-bg); border: 1px dashed var(--amber); border-radius: 12px; padding: .8rem 1.05rem; font-size: .9rem; }
+      .holiday-note b { display: block; }
+      .empty-msg { color: var(--ink-soft); font-size: .9rem; padding: 1rem 0; }
+
+      /* glossary */
+      .gloss { display: grid; gap: .7rem; }
+      @media (min-width: 640px) { .gloss { grid-template-columns: 1fr 1fr; } }
+      .gloss article { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1rem; box-shadow: var(--shadow); }
+      .gloss h3 { margin: 0 0 .3rem; font-size: .98rem; }
+      .gloss h3 span { color: var(--ink-soft); font-size: .78rem; font-weight: 600; }
+      .gloss p { margin: 0; font-size: .87rem; color: var(--ink-soft); }
+      .gloss p b { color: var(--ink); }
+
+      footer { margin-top: 2.2rem; border-top: 1px solid var(--line); padding-top: 1rem; font-size: .8rem; color: var(--ink-soft); }
+      footer p { margin: 0 0 .5rem; }
+      footer a { color: var(--navy); text-underline-offset: 3px; }
+      @media (prefers-color-scheme: dark) { footer a { color: #7fc8e8; } }
+
+      /* toast */
+      .toast {
+        position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%) translateY(140%);
+        background: var(--navy); color: #fff; border-radius: 11px; padding: .8rem 1.05rem;
+        max-width: min(92vw, 480px); box-shadow: 0 10px 30px rgba(11,107,158,.35); z-index: 50;
+        transition: transform .25s ease; font-size: .88rem;
+      }
+      .toast.show { transform: translateX(-50%) translateY(0); }
+      .toast b { display: block; color: #ffd97a; }
+      @media (prefers-reduced-motion: reduce) { .toast { transition: none; } .btn:active { transform: none; } }
+    </style>
+  </head>
+  <body>
+    <!-- Widget view -->
+    <section class="widget-view" aria-label="次の重要指標">
+      <p class="w-label">次の重要指標</p>
+      <p class="w-name" id="w-name">読み込み中…</p>
+      <p class="w-when num" id="w-when"></p>
+      <p class="w-count num" id="w-count"></p>
+      <p class="w-note" id="w-note"></p>
+    </section>
+
+    <!-- App view -->
+    <main class="app-view">
+      <div class="wrap">
+        <div class="hero">
+          <p class="h-label">サカナ部長の経済指標アラート</p>
+          <p class="h-sub">次のビッグイベントまで</p>
+          <h1 id="next-name">読み込み中…</h1>
+          <p class="h-when num" id="next-when"></p>
+          <div class="countdown" role="timer" aria-label="発表までのカウントダウン">
+            <div class="cd-cell"><b class="num" id="cd-d">–</b><span>日</span></div>
+            <div class="cd-cell"><b class="num" id="cd-h">–</b><span>時間</span></div>
+            <div class="cd-cell"><b class="num" id="cd-m">–</b><span>分</span></div>
+            <div class="cd-cell"><b class="num" id="cd-s">–</b><span>秒</span></div>
+          </div>
+          <p><span class="h-status warn" id="next-status">確認中…</span></p>
+          <p class="h-rule">初心者の鉄則：<strong>指標の発表前は入らない。</strong>大きく動く日ほど「見るだけ」にするのが、最初の負けを減らす一番の近道です。</p>
+        </div>
+
+        <section class="block" aria-labelledby="alert-h">
+          <h2 id="alert-h">アラート設定</h2>
+          <p class="lead">大事な指標を忘れないための通知設定です。オンにした項目は、このページを開いている間にそのタイミングでお知らせします。</p>
+          <div class="settings">
+            <div class="toggle-row">
+              <div class="t-text"><b>前日の夜に知らせる</b><span>発表前日の21:00（日本時間）— 明日の予定を寝る前に確認できます</span></div>
+              <label class="switch"><input type="checkbox" id="tg-eve" checked></label>
+            </div>
+            <div class="toggle-row">
+              <div class="t-text"><b>1時間前に知らせる</b><span>発表の1時間前 — ポジションを持っていたら見直す最後の合図</span></div>
+              <label class="switch"><input type="checkbox" id="tg-1h" checked></label>
+            </div>
+            <div class="toggle-row">
+              <div class="t-text"><b>対象は重要度★★★のみ</b><span>オフにすると★★の指標もお知らせします</span></div>
+              <label class="switch"><input type="checkbox" id="tg-big" checked></label>
+            </div>
+            <div class="btn-row">
+              <button class="btn primary" id="btn-perm" type="button">通知を許可する</button>
+              <button class="btn" id="btn-test" type="button">テスト通知を送る</button>
+              <button class="btn" id="btn-ics-all" type="button">全イベントをカレンダーに追加（.ics）</button>
+            </div>
+            <p class="perm-note" id="perm-note">通知の許可状態：<b>未確認</b>。「通知を許可する」を押すとブラウザの許可ダイアログが出ます。</p>
+            <p class="perm-note">このページを閉じている間は通知できません。<b>閉じていても確実に知りたい場合は「カレンダーに追加」</b>が確実です（前日と1時間前のアラーム付きで登録されます）。スマホのカレンダーアプリに取り込んでください。</p>
+          </div>
+        </section>
+
+        <section class="block" aria-labelledby="list-h">
+          <h2 id="list-h">重要指標カレンダー（日本時間）</h2>
+          <p class="lead">ドル円とユーロドルに効く指標だけに絞っています。時刻はすべて日本時間。タップで「強い結果だとどうなるか」まで読めます。</p>
+          <div class="chips" role="group" aria-label="絞り込み">
+            <button class="chip-btn" type="button" data-filter="all" aria-pressed="true">すべて</button>
+            <button class="chip-btn" type="button" data-filter="big" aria-pressed="false">★★★のみ</button>
+            <button class="chip-btn" type="button" data-filter="week" aria-pressed="false">今後7日</button>
+            <button class="chip-btn" type="button" data-filter="usdjpy" aria-pressed="false">ドル円</button>
+            <button class="chip-btn" type="button" data-filter="eurusd" aria-pressed="false">ユーロドル</button>
+            <button class="chip-btn" type="button" data-filter="jp" aria-pressed="false">日本</button>
+          </div>
+          <div class="event-list" id="event-list"></div>
+          <p class="empty-msg" id="empty-msg" hidden>条件に合う指標はありません。</p>
+        </section>
+
+        <section class="block" aria-labelledby="gloss-h">
+          <h2 id="gloss-h">指標の読み方（初心者向け）</h2>
+          <p class="lead">数字そのものより「予想より強いか弱いか」で相場は動きます。まずはこの6つだけ覚えれば十分です。</p>
+          <div class="gloss">
+            <article>
+              <h3>PCEデフレーター <span>米・毎月</span></h3>
+              <p>アメリカの物価の動き。FRB（米中央銀行）が<b>金利を決めるときに一番重視する物価指標</b>で、CPIより影響が長続きしやすい。予想より高いと「利上げが続く」思惑でドルが買われやすい。</p>
+            </article>
+            <article>
+              <h3>雇用統計（NFP） <span>米・毎月第1金曜が中心</span></h3>
+              <p>アメリカで働く人がどれだけ増えたか。景気の体温計で、<b>発表直後の値動きが最も大きい指標のひとつ</b>。初心者は発表をまたいでポジションを持たないのが無難。</p>
+            </article>
+            <article>
+              <h3>CPI（消費者物価指数） <span>米・毎月</span></h3>
+              <p>買い物かごの値段の変化。PCEと並ぶ物価の二大指標。物価が強い→金利高止まり→ドル高、という流れが基本形。食品とエネルギーを除いた「コア」も一緒に見られる。</p>
+            </article>
+            <article>
+              <h3>FOMC（政策金利発表） <span>米・年8回</span></h3>
+              <p>FRBが金利を上げる・下げる・据え置くかを決める会合。<b>金利そのものより、声明文と議長会見の「次の一手」の匂わせ方</b>で動く。見通し（ドットプロット）が出る回は特に大きい。</p>
+            </article>
+            <article>
+              <h3>GDP <span>米・四半期ごと</span></h3>
+              <p>アメリカ経済の大きさの伸び率。速報→改定→確報と3回出る。改定値・確報値は初回ほど動かないが、<b>大きく書き換わるとサプライズ</b>になる。PCEと同刻発表の日は合わせて見る。</p>
+            </article>
+            <article>
+              <h3>中央銀行の会合（ECB・日銀） <span>欧・日</span></h3>
+              <p>ECBはユーロの金利、日銀は円の金利を決める。<b>ユーロドルはECB、ドル円は日銀の発言ひとつで流れが変わる</b>。日銀の発表時刻は決まっておらず、当日昼ごろに突然出るので午前中は要注意。</p>
+            </article>
+          </div>
+        </section>
+
+        <footer>
+          <p>日程は2026年11月25日時点で、各発表機関の公式スケジュールで確認したものです。発表日時は変更されることがあるため、取引前には公式発表も確認してください。このページは予想値・結果の速報は扱いません（日程と読み方に絞っています）。</p>
+          <p>出典：
+            <a href="https://www.bls.gov/schedule/2026/12_sched_list.htm" target="_blank" rel="noopener">米労働統計局（BLS）発表スケジュール</a>／
+            <a href="https://bea.gov/news/schedule" target="_blank" rel="noopener">米経済分析局（BEA）発表スケジュール</a>／
+            <a href="http://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm" target="_blank" rel="noopener">日本銀行 金融政策決定会合の日程</a>
+          </p>
+          <p>投資は自己責任です。このページは指標の日程を知らせる道具で、売買の推奨ではありません。</p>
+        </footer>
+      </div>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><b id="toast-title"></b><span id="toast-body"></span></div>
+
+<script>
+// ---- Event data (all times JST, verified 2026-11-25 against official schedules) ----
+var EVENTS = [
+{
+id: "pce-20261125", type: "pce",
+name: "米PCEデフレーター（10月）＋ GDP改定値ほか",
+dt: "2026-11-25T22:30:00+09:00", stars: 3, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米経済分析局（BEA）ほか",
+one: "今夜は指標が集中する今週最大の山場。FRBが一番見る物価指標PCEに、GDP改定値・耐久財受注・新規失業保険申請が同じ22:30に重なります。明日26日は米市場が感謝祭で休場のため、今夜のうちにポジションを整理する動きも出やすい日です。",
+what: "PCEはアメリカの個人消費の価格の動きで、FRBが金利判断で最も重視する物価指標です。今回は10月分。同じ時刻に第3四半期GDPの改定値も出ます。",
+strong: "物価が予想より強い（高い）と「利上げが続く・金利が高止まりする」思惑が強まり、ドルが買われやすい（ドル円は上昇方向）。",
+weak: "物価が予想より弱い（低い）と「利下げが近づく」思惑で、ドルが売られやすい（ドル円は下落方向）。",
+advice: "発表30分前から新規エントリーはしない。ポジションがあるなら、発表前に利確・損切りラインを置き直しておく日です。"
+},
+{
+id: "holiday-20261126", type: "holiday",
+name: "米市場休場（感謝祭）— 値動きが荒くなりやすい日",
+dateLabel: "11/26（木）", stars: 0, country: "米国",
+pairs: ["usdjpy", "eurusd"],
+one: "アメリカが祝日で市場参加者が少ない日は、少ない注文で値が飛びやすくなります。チャンスに見えても、普段より慎重に。無理に触らないのが正解になりやすい日です。"
+},
+{
+id: "ism-20261201", type: "ism",
+name: "ISM製造業景況指数（11月）＋ JOLTS求人件数（10月）",
+dt: "2026-12-02T00:00:00+09:00", stars: 2, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "ISM／米労働統計局（BLS）",
+one: "深夜0時に2つ重なる日。工場の景気感と、求人の強さを見る指標です。12月4日の雇用統計と12月9〜10日のFOMCを前に、景気の温度を確かめる材料になります。",
+what: "ISM製造業は工場の担当者への聞き取り調査で、50が景気の拡大・縮小の境目。JOLTSは「企業がどれだけ人を欲しがっているか」の求人数です。",
+strong: "50を上回り予想より強いと景気の底堅さが意識され、ドルが買われやすい。",
+weak: "50割れや予想下振れだと景気不安が強まり、ドルが売られやすい。",
+advice: "深夜の発表なので、寝る前にポジションを持ち越すかどうかだけ決めておけば十分です。"
+},
+{
+id: "ism-svc-20261203", type: "ism",
+name: "ISM非製造業景況指数（11月）",
+dt: "2026-12-04T00:00:00+09:00", stars: 2, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "ISM",
+one: "サービス業（アメリカ経済の約7割）の景気感です。同日22:30には週次の新規失業保険申請もあり、翌日の雇用統計に向けた前哨戦になります。",
+what: "飲食・小売・医療などサービス業の担当者調査。製造業より経済全体への影響が大きい分野で、50が境目です。",
+strong: "予想より強いと「消費はまだ元気」と受け止められ、ドルが買われやすい。",
+weak: "予想より弱いと景気減速の心配が広がり、ドルが売られやすい。",
+advice: "翌日に雇用統計を控えた日。ここで無理に方向を決め打ちしないことです。"
+},
+{
+id: "nfp-20261204", type: "nfp",
+name: "米雇用統計（11月）",
+dt: "2026-12-04T22:30:00+09:00", stars: 3, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米労働統計局（BLS）",
+one: "月に一度の最大イベント級。雇用者数の増減と失業率が22:30に一斉に出て、ドル円は数分で大きく動くことがあります。FOMC直前（12月9〜10日）の雇用統計なので、いつも以上に注目されます。",
+what: "アメリカで新たに働き始めた人の数（非農業部門雇用者数）と失業率。景気と金利の両方に直結するため、FXで最も値動きが出る指標のひとつです。",
+strong: "雇用が予想より大きく増えると「景気が強い→金利は高止まり」の思惑でドルが買われやすい。",
+weak: "雇用の伸びが鈍ったり失業率が上がると、ドルが売られやすい。予想との差が大きいほど動きも大きい。",
+advice: "発表をまたいでポジションを持たないのが初心者の基本。見るなら発表後30分は様子見です。"
+},
+{
+id: "fomc-20261209", type: "fomc",
+name: "FOMC 政策金利発表（経済見通し・ドットプロット付き）",
+dt: "2026-12-10T04:00:00+09:00", stars: 3, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米連邦準備理事会（FRB）",
+one: "年内最後のFOMC。深夜4:00に金利発表、4:30から議長会見。今回は参加者の金利見通し（ドットプロット）も出る回で、来年の金利の道筋次第でドル円が大きく動きます。",
+what: "FRBが政策金利をどうするか決める会合の結果発表。据え置きでも、声明文と議長の発言が「次は上げる・下げる」のどちら寄りかで相場は動きます。",
+strong: "金利を上げたり、声明が引き締め寄り（タカ派）だとドルが買われやすい。",
+weak: "金利を下げたり、声明が緩和寄り（ハト派）だとドルが売られやすい。",
+advice: "深夜の発表です。寝ている間に大きく動く可能性があるので、その晩はポジションを持たないか、損切りを必ず置いてから寝ること。"
+},
+{
+id: "cpi-20261210", type: "cpi",
+name: "米CPI 消費者物価指数（11月）",
+dt: "2026-12-10T22:30:00+09:00", stars: 3, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米労働統計局（BLS）",
+one: "FOMCの翌日に物価指標という、異例の2日連続ビッグイベント。FOMCで出た金利の道筋が正しかったか、物価の数字で試される日です。",
+what: "スーパーやサービスの値段の変化率。食品・エネルギーを除いた「コアCPI」とセットで見ます。FRBの金利判断に直結します。",
+strong: "物価が予想より高いと「金利はまだ下がらない（むしろ上げる）」思惑でドルが買われやすい。",
+weak: "物価が予想より低いと「利下げが近づいた」思惑でドルが売られやすい。",
+advice: "前日のFOMCの余韻が残る日。発表直後の飛び乗りは特に危険です。"
+},
+{
+id: "ppi-20261215", type: "ppi",
+name: "米PPI 生産者物価指数（11月）",
+dt: "2026-12-15T22:30:00+09:00", stars: 2, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米労働統計局（BLS）",
+one: "企業同士の取引価格の変化。消費者物価の「川上」にあたる数字で、翌日16日の小売売上高と合わせて年末の物価と消費を占います。",
+what: "工場や卸の出荷価格の動き。ここが上がると、数か月後に店頭価格（CPI）へ転嫁されやすいと言われます。",
+strong: "予想より高いと物価圧力の根強さが意識され、ドルが買われやすい。",
+weak: "予想より低いと物価落ち着きの見方が広がり、ドルが売られやすい。",
+advice: "★★でも年末の薄い相場では動きが増幅されやすい点だけ注意。"
+},
+{
+id: "retail-20261216", type: "retail",
+name: "米小売売上高（11月）",
+dt: "2026-12-16T22:30:00+09:00", stars: 2, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米商務省センサス局",
+one: "ブラックフライデーを含む11月の買い物の強さが出ます。アメリカ経済の約7割は個人消費なので、年末商戦の出足は金利見通しにも影響します。",
+what: "小売店と飲食店の売上高の前月比。自動車を除いた数字と合わせて、消費の勢いを見ます。",
+strong: "予想より強いと「消費が底堅い→景気も金利も強いまま」の見方でドルが買われやすい。",
+weak: "予想より弱いと消費の息切れが心配され、ドルが売られやすい。",
+advice: "翌日はECBと日銀が控える週の山場入り。ここから3日間は特に慎重に。"
+},
+{
+id: "ecb-20261217", type: "ecb",
+name: "ECB 政策金利発表（スタッフ見通し付き）",
+dt: "2026-12-17T22:15:00+09:00", stars: 3, country: "ユーロ圏",
+pairs: ["eurusd"], source: "欧州中央銀行（ECB）",
+one: "ユーロドルをやるなら外せない日。22:15に金利発表、22:45からラガルド総裁の会見。今回はECBスタッフの新しい経済見通しも出る回です。",
+what: "ユーロ圏の政策金利の決定。据え置き予想でも、総裁会見で来年の利上げ・利下げのヒントが出るとユーロが大きく動きます。",
+strong: "利上げや引き締め寄りの発言だとユーロが買われ、ユーロドルは上昇方向。",
+weak: "利下げや緩和寄りの発言だとユーロが売られ、ユーロドルは下落方向。",
+advice: "会見の途中でも値が動きます。発表から会見終了（23:30ごろ）までは様子見が安全です。"
+},
+{
+id: "boj-20261218", type: "boj",
+name: "日銀 金融政策決定会合 結果発表",
+dt: "2026-12-18T12:00:00+09:00", approx: true, stars: 3, country: "日本",
+pairs: ["usdjpy"], source: "日本銀行",
+one: "ドル円が昼に突然動く日。日銀の発表時刻は決まっておらず、例年12時前後に結果が出ます。15:30には総裁会見もあり、一日を通して円が動きやすい日です。",
+what: "日本の政策金利の決定。利上げなら円高方向、据え置きでも総裁の発言次第で動きます。今回は展望レポートのない会合です。",
+strong: "利上げや引き締め寄りの発言だと円が買われ、ドル円は下落方向。",
+weak: "据え置きで緩和寄りの発言だと円が売られ、ドル円は上昇方向。",
+advice: "午前中から結果が出るまで新規エントリーは控える。昼休みにチャートが飛ぶことがあるので、午前中にポジション整理を。"
+},
+{
+id: "pce-20261223", type: "pce",
+name: "米PCEデフレーター（11月）＋ GDP確報値ほか",
+dt: "2026-12-23T22:30:00+09:00", stars: 2, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米経済分析局（BEA）ほか",
+one: "クリスマス前の最後の大きな発表。参加者が減って値が飛びやすい時期と重なるため、数字が平凡でも動きが大きくなることがあります。",
+what: "11月分のPCE（FRB最重視の物価指標）と、第3四半期GDPの確報値が同刻発表されます。",
+strong: "物価が予想より強いとドルが買われやすい。",
+weak: "物価が予想より弱いとドルが売られやすい。",
+advice: "年末モードの相場です。ここで無理に取り返そうとしないのが大事な時期。"
+},
+{
+id: "nfp-20270108", type: "nfp",
+name: "米雇用統計（12月）",
+dt: "2027-01-08T22:30:00+09:00", stars: 3, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米労働統計局（BLS）",
+one: "年明け最初の雇用統計。年始は参加者がまだ少なく、発表直後のスプレッドが広がりやすい点に注意です。",
+what: "12月分の雇用者数の増減と失業率。年末商戦の雇用の強さが表れます。",
+strong: "雇用が予想より増えるとドルが買われやすい。",
+weak: "雇用の伸びが鈍るとドルが売られやすい。",
+advice: "年始の薄い相場×雇用統計。発表をまたぐポジション保有は避けるのが基本です。"
+},
+{
+id: "cpi-20270113", type: "cpi",
+name: "米CPI 消費者物価指数（12月）",
+dt: "2027-01-13T22:30:00+09:00", stars: 3, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米労働統計局（BLS）",
+one: "1月末のFOMC（日本時間1月28日未明）を前に、物価の方向を決める重要な一報です。",
+what: "12月分の消費者物価。コア（食品・エネルギー除く）と合わせて見ます。",
+strong: "物価が予想より高いとドルが買われやすい。",
+weak: "物価が予想より低いとドルが売られやすい。",
+advice: "発表前30分〜発表後30分は様子見が無難です。"
+},
+{
+id: "boj-20270122", type: "boj",
+name: "日銀 金融政策決定会合 結果発表（展望レポート付き）",
+dt: "2027-01-22T12:00:00+09:00", approx: true, stars: 3, country: "日本",
+pairs: ["usdjpy"], source: "日本銀行",
+one: "年明け最初の日銀会合は、経済・物価の見通し（展望レポート）が出る回。金利据え置きでも見通しの書きぶりで円が動きます。発表時刻は未定で昼ごろが目安です。",
+what: "政策金利の決定と、日銀の経済・物価見通しの公表がセットになった会合です。",
+strong: "利上げや見通しの上方修正だと円が買われ、ドル円は下落方向。",
+weak: "緩和寄りの内容だと円が売られ、ドル円は上昇方向。",
+advice: "午前中は結果待ちで動きにくい分、出た瞬間に飛びます。午前中の新規エントリーは控えめに。"
+},
+{
+id: "fomc-20270127", type: "fomc",
+name: "FOMC 政策金利発表",
+dt: "2027-01-28T04:00:00+09:00", stars: 3, country: "米国",
+pairs: ["usdjpy", "eurusd"], source: "米連邦準備理事会（FRB）",
+one: "2027年最初のFOMC。深夜4:00発表、4:30から議長会見。今回はドットプロットなしの回ですが、声明文の一言で年内の金利観測が変わります。",
+what: "政策金利の決定と声明文の発表。会見での議長の言い回しが相場を動かします。",
+strong: "引き締め寄りの内容だとドルが買われやすい。",
+weak: "緩和寄りの内容だとドルが売られやすい。",
+advice: "深夜発表です。ポジションを持ったまま寝る場合は損切りを必ず置くこと。"
+}
+];
+
+// All displayed times are pinned to Asia/Tokyo, whatever the viewer device timezone is.
+var dtf = new Intl.DateTimeFormat("ja-JP", {
+timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric",
+weekday: "short", hour: "numeric", minute: "2-digit", hourCycle: "h23"
+});
+function jstParts(d) {
+var o = {};
+dtf.formatToParts(d).forEach(function (p) { o[p.type] = p.value; });
+return o;
+}
+function sameJstDay(a, b) {
+var pa = jstParts(a), pb = jstParts(b);
+return pa.year === pb.year && pa.month === pb.month && pa.day === pb.day;
+}
+function dstr(d) {
+var p = jstParts(d);
+return p.year + "年" + p.month + "月" + p.day + "日（" + p.weekday + "）";
+}
+function tstr(d) {
+var p = jstParts(d);
+return p.hour + ":" + p.minute;
+}
+function timedEvents() {
+return EVENTS.filter(function (e) { return!!e.dt;}).map(function (e) {
+return { ev: e, date: new Date(e.dt)};
+}).sort(function (a, b) { return a.date - b.date;});
+}
+function nextEvent(now) {
+var list = timedEvents();
+for (var i = 0; i < list.length; i++) { if (list[i].date > now) return list[i];}
+return null;
+}
+function fmtCountdown(ms) {
+if (ms < 0) ms = 0;
+var s = Math.floor(ms / 1000);
+var d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+return { d: d, h: h, m: m, s: sec};
+}
+function countLabel(ms) {
+var c = fmtCountdown(ms);
+if (c.d > 0) return "あと" + c.d + "日" + c.h + "時間";
+if (c.h > 0) return "あと" + c.h + "時間" + c.m + "分";
+return "あと" + c.m + "分" + c.s + "秒";
+}
+
+// ---- Hero countdown ----
+var isWidget = document.documentElement.dataset.hatchView === "widget";
+function tick() {
+var now = new Date();
+var nx = nextEvent(now);
+if (!nx) {
+if (isWidget) {
+document.getElementById("w-name").textContent = "掲載中の指標はすべて発表済みです";
+document.getElementById("w-count").textContent = "";
+} else {
+document.getElementById("next-name").textContent = "掲載中の指標はすべて発表済みです";
+document.getElementById("next-status").textContent = "次の日程の掲載をお待ちください";
+}
+return;
+}
+var ms = nx.date - now;
+var c = fmtCountdown(ms);
+if (isWidget) {
+document.getElementById("w-name").textContent = nx.ev.name;
+document.getElementById("w-when").textContent = dstr(nx.date) + " " + tstr(nx.date) + (nx.ev.approx? "ごろ（目安）": "") + " 発表";
+document.getElementById("w-count").textContent = countLabel(ms);
+document.getElementById("w-note").textContent = ms < 24 * 3600 * 1000? "発表前は入らない — 様子見の日": "";
+return;
+}
+document.getElementById("next-name").textContent = nx.ev.name;
+document.getElementById("next-when").textContent = dstr(nx.date) + " " + tstr(nx.date) + (nx.ev.approx? "ごろ（時刻は目安）": "") + "・日本時間";
+document.getElementById("cd-d").textContent = c.d;
+document.getElementById("cd-h").textContent = c.h;
+document.getElementById("cd-m").textContent = c.m;
+document.getElementById("cd-s").textContent = c.s;
+var st = document.getElementById("next-status");
+if (ms < 3 * 3600 * 1000) {
+st.className = "h-status danger";
+st.textContent = "まもなく発表 — 新規エントリーは控えて様子見";
+} else if (ms < 24 * 3600 * 1000) {
+var sameDay = sameJstDay(nx.date, now);
+st.className = "h-status danger";
+st.textContent = sameDay? "今日はビッグイベントの日 — 「触らない」も立派なトレード": "24時間以内に発表 — 今日のうちにポジション整理を";
+} else if (ms < 72 * 3600 * 1000) {
+st.className = "h-status warn";
+st.textContent = "あと" + Math.ceil(ms / 86400000) + "日 — 週の計画に組み込んでおこう";
+} else {
+st.className = "h-status safe";
+st.textContent = "直近に大きな指標なし — ルール通りの練習ができる期間";
+}
+}
+tick();
+setInterval(tick, 1000);
+
+if (!isWidget) {
+// ---- Event list rendering ----
+var listEl = document.getElementById("event-list");
+var emptyEl = document.getElementById("empty-msg");
+var now0 = new Date();
+
+function starsHtml(n) {
+var s = "";
+for (var i = 0; i < 3; i++) s += '<span class="' + (i < n? "": "off") + '">★</span>';
+return '<span class="stars" aria-label="重要度' + n + '">' + s + "</span>";
+}
+function pairTags(ev) {
+var t = "";
+if (ev.pairs.indexOf("usdjpy") >= 0) t += '<span class="tag pair">ドル円</span>';
+if (ev.pairs.indexOf("eurusd") >= 0) t += '<span class="tag pair">ユーロドル</span>';
+return t;
+}
+function isToday(d) { return sameJstDay(d, now0); }
+
+function render(filter) {
+listEl.innerHTML = "";
+var shown = 0;
+EVENTS.forEach(function (ev) {
+if (ev.type === "holiday") {
+if (filter!== "all" && filter!== "week") return;
+var hn = document.createElement("div");
+hn.className = "holiday-note";
+hn.innerHTML = "<b>" + ev.dateLabel + " " + ev.name + "</b>" + ev.one;
+listEl.appendChild(hn); shown++;
+return;
+}
+var d = new Date(ev.dt);
+if (d < now0) return; // past events drop off
+if (filter === "big" && ev.stars < 3) return;
+if (filter === "week" && (d - now0) > 7 * 86400000) return;
+if (filter === "usdjpy" && ev.pairs.indexOf("usdjpy") < 0) return;
+if (filter === "eurusd" && ev.pairs.indexOf("eurusd") < 0) return;
+if (filter === "jp" && ev.country!== "日本") return;
+
+var jp = jstParts(d);
+var card = document.createElement("article");
+card.className = "ev" + (isToday(d)? " today": "");
+var winMin = ev.stars >= 3? 30: 15;
+var detail =
+'<div class="ev-detail">' +
+"<p>" + ev.what + "</p>" +
+'<div class="dir">' +
+'<div class="dir-box up"><b>予想より強い結果だと</b>' + ev.strong + "</div>" +
+'<div class="dir-box dn"><b>予想より弱い結果だと</b>' + ev.weak + "</div>" +
+"</div>" +
+"<p style='margin-top:.55rem'><b>初心者はどうする：</b>" + ev.advice + "</p>" +
+"</div>";
+card.innerHTML =
+'<div class="ev-top">' +
+'<div class="ev-date"><span class="d-md">' + jp.month + "/" + jp.day + '</span>' +
+'<span class="d-wd">（' + jp.weekday + '）</span>' +
+'<span class="d-time num">' + tstr(d) + (ev.approx? "ごろ": "") + "</span></div>" +
+'<div class="ev-main">' +
+'<h3 class="ev-name">' + ev.name + "</h3>" +
+'<p class="ev-meta">' + starsHtml(ev.stars) + pairTags(ev) +
+(isToday(d)? '<span class="today-badge">今日</span>': "") +
+"<span>" + ev.country + "・" + ev.source + "</span></p>" +
+'<p class="ev-one">' + ev.one + "</p>" +
+'<span class="ev-window">触らない目安：発表' + winMin + "分前 〜 発表" + winMin + "分後</span>" +
+"<details><summary>この指標の読み方を開く</summary>" + detail + "</details>" +
+'<div class="ev-actions"><button class="btn" type="button" data-ics="' + ev.id + '">カレンダーに追加（.ics）</button></div>' +
+"</div></div>";
+listEl.appendChild(card); shown++;
+});
+emptyEl.hidden = shown > 0;
+}
+render("all");
+
+var chips = document.querySelectorAll(".chip-btn");
+chips.forEach(function (btn) {
+btn.addEventListener("click", function () {
+chips.forEach(function (b) { b.setAttribute("aria-pressed", "false");});
+btn.setAttribute("aria-pressed", "true");
+render(btn.getAttribute("data-filter"));
+});
+});
+
+// ---- ICS export ----
+function icsEscape(s) { return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");}
+function icsDate(d) {
+function p(n) { return (n < 10? "0": "") + n;}
+return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + "T" + p(d.getUTCHours()) + p(d.getUTCMinutes()) + "00Z";
+}
+function buildIcs(events) {
+var lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Sakana Bucho FX Alert//JA", "CALSCALE:GREGORIAN"];
+events.forEach(function (ev) {
+var start = new Date(ev.dt);
+var end = new Date(start.getTime() + 30 * 60000);
+lines.push("BEGIN:VEVENT");
+lines.push("UID:" + ev.id + "@fx-alert");
+lines.push("DTSTAMP:" + icsDate(new Date()));
+lines.push("DTSTART:" + icsDate(start));
+lines.push("DTEND:" + icsDate(end));
+lines.push("SUMMARY:" + icsEscape("" + ev.name));
+lines.push("DESCRIPTION:" + icsEscape(ev.one + "（発表前は入らない・様子見が目安）"));
+lines.push("BEGIN:VALARM");
+lines.push("TRIGGER:-PT24H");
+lines.push("ACTION:DISPLAY");
+lines.push("DESCRIPTION:" + icsEscape("明日は重要指標：" + ev.name));
+lines.push("END:VALARM");
+lines.push("BEGIN:VALARM");
+lines.push("TRIGGER:-PT60M");
+lines.push("ACTION:DISPLAY");
+lines.push("DESCRIPTION:" + icsEscape("1時間後に発表：" + ev.name));
+lines.push("END:VALARM");
+lines.push("END:VEVENT");
+});
+lines.push("END:VCALENDAR");
+return lines.join("\r\n");
+}
+function downloadIcs(events, filename) {
+var blob = new Blob([buildIcs(events)], { type: "text/calendar;charset=utf-8"});
+var url = URL.createObjectURL(blob);
+var a = document.createElement("a");
+a.href = url; a.download = filename;
+document.body.appendChild(a); a.click();
+document.body.removeChild(a);
+setTimeout(function () { URL.revokeObjectURL(url);}, 2000);
+}
+document.getElementById("btn-ics-all").addEventListener("click", function () {
+downloadIcs(EVENTS.filter(function (e) { return!!e.dt;}), "fx-important-indicators.ics");
+showToast("カレンダーファイルをダウンロードしました", "スマホのカレンダーアプリで開くと、前日と1時間前のアラーム付きで登録されます。");
+});
+listEl.addEventListener("click", function (e) {
+var id = e.target.getAttribute && e.target.getAttribute("data-ics");
+if (!id) return;
+var ev = EVENTS.filter(function (x) { return x.id === id;})[0];
+if (ev) {
+downloadIcs([ev], "fx-" + id + ".ics");
+showToast("カレンダーファイルをダウンロードしました", ev.name);
+}
+});
+
+// ---- Notifications (in-page timers; honest prototype scope) ----
+var toastTimer = null;
+function showToast(title, body) {
+var t = document.getElementById("toast");
+document.getElementById("toast-title").textContent = title;
+document.getElementById("toast-body").textContent = body;
+t.classList.add("show");
+if (toastTimer) clearTimeout(toastTimer);
+toastTimer = setTimeout(function () { t.classList.remove("show");}, 6000);
+}
+window.showToast = showToast;
+
+var permNote = document.getElementById("perm-note");
+function refreshPerm() {
+if (!("Notification" in window)) {
+permNote.innerHTML = "通知の許可状態：<b>このブラウザは通知に対応していません</b>。カレンダー追加をご利用ください。";
+return;
+}
+var label = Notification.permission === "granted"? "許可済み": Notification.permission === "denied"? "ブロックされています（ブラウザ設定から許可できます）": "未許可";
+permNote.innerHTML = "通知の許可状態：<b>" + label + "</b>。「通知を許可する」を押すとブラウザの許可ダイアログが出ます。";
+}
+refreshPerm();
+
+document.getElementById("btn-perm").addEventListener("click", function () {
+if (!("Notification" in window)) { showToast("通知に対応していません", "このブラウザでは通知が使えません。カレンダー追加をご利用ください。"); return;}
+Notification.requestPermission().then(function () {
+refreshPerm();
+scheduleAlerts();
+showToast("通知の許可を確認しました", "設定はこのページを開いている間に有効です。");
+});
+});
+document.getElementById("btn-test").addEventListener("click", function () {
+showToast("テスト通知：今夜22:30 米PCEデフレーター", "こんな形でお知らせします。発表前は入らない — 様子見の日です。");
+if ("Notification" in window && Notification.permission === "granted") {
+new Notification("サカナ部長の経済指標アラート（テスト）", { body: "今夜22:30 米PCEデフレーター。発表前は入らない — 様子見の日です。"});
+}
+});
+
+var timers = [];
+var MAX_DELAY = 2147483647;
+function addTimer(fn, delay) {
+if (delay > 0 && delay < MAX_DELAY) timers.push(setTimeout(fn, delay));
+}
+function clearTimers() { timers.forEach(clearTimeout); timers = [];}
+function fireAlert(ev, whenLabel) {
+var title = "" + whenLabel + "：" + ev.name;
+var body = "発表前は入らない — ポジションの確認を。";
+showToast(title, body);
+if ("Notification" in window && Notification.permission === "granted") {
+new Notification(title, { body: body});
+}
+}
+function scheduleAlerts() {
+clearTimers();
+var useEve = document.getElementById("tg-eve").checked;
+var use1h = document.getElementById("tg-1h").checked;
+var bigOnly = document.getElementById("tg-big").checked;
+var now = new Date();
+EVENTS.forEach(function (ev) {
+if (!ev.dt) return;
+if (bigOnly && ev.stars < 3) return;
+var start = new Date(ev.dt);
+if (use1h) {
+addTimer(function () { fireAlert(ev, "1時間後に発表"); }, start.getTime() - 3600000 - now.getTime());
+}
+if (useEve) {
+var sp = jstParts(start);
+var eveUtc = Date.UTC(parseInt(sp.year, 10), parseInt(sp.month, 10) - 1, parseInt(sp.day, 10) - 1, 12, 0, 0);
+addTimer(function () { fireAlert(ev, "明日は重要指標"); }, eveUtc - now.getTime());
+}
+});
+}
+["tg-eve", "tg-1h", "tg-big"].forEach(function (id) {
+document.getElementById(id).addEventListener("change", scheduleAlerts);
+});
+scheduleAlerts();
+}
+</script>
+</body>
+</html>
